@@ -1,0 +1,103 @@
+WITH ClarificationInfo AS (
+    SELECT 
+        businesskeyId,
+        CASE WHEN COUNT(*) >= 1 THEN 'Yes' ELSE 'No' END AS ClarificationReceived,
+        COUNT(*) AS ClarificationCount
+    FROM [leapmaster].[dbo].[icm_audit]
+    WHERE comments = 'Case status changed to Clarification Requested'
+    GROUP BY businesskeyId
+),
+TaskDurations AS (
+    SELECT 
+        business_key,
+        SUM(COALESCE(CAST(duration AS BIGINT), 0)) / 60000 AS ActualSLA
+    FROM mgftable_task_durations
+    WHERE task_name NOT IN ('mailReceived') 
+    AND status_ IN ('ticketClosure', 'noActionRequired')
+    AND duration IS NOT NULL
+    GROUP BY business_key
+),
+StatusMapping AS (
+    SELECT 'discarded' AS status_, 'Discarded' AS StatusName
+    UNION ALL SELECT 'inProgress', 'In Progress'
+    UNION ALL SELECT 'new', 'New'
+    -- Add other status mappings here
+),
+ReasonMapping AS (
+    SELECT 'notInScope' AS reason, 'Not In Scope' AS ReasonName
+    UNION ALL SELECT 'duplicate', 'Duplicate'
+    UNION ALL SELECT 'closedByMerchant', 'Closed by Merchant'
+    -- Add other reason mappings here
+),
+BrandMapping AS (
+    SELECT 'chicos' AS brand, 'Chico''s' AS BrandName
+    UNION ALL SELECT 'soma', 'SOMA'
+    UNION ALL SELECT 'vineyardVines', 'Vineyard Vines'
+    -- Add other brand mappings here
+),
+RequestTypeMapping AS (
+    SELECT 'amendVpoFieldLevel' AS request_type, 'Amend VPO Field Level' AS RequestTypeName
+    UNION ALL SELECT 'downloadTechpack', 'Download Techpack'
+    UNION ALL SELECT 'customerPurchaseOrder', 'Customer Purchase Order'
+    -- Add other request type mappings here
+)
+
+SELECT DISTINCT
+    jt.[business_key_] AS CaseId,
+    jt.[proc_def_key_] AS 'Process Name',
+    CASE 
+        WHEN jt.[source_] = 'Manual' THEN 'Manual' 
+        WHEN jt.[source_] = 'email' THEN 'Email' 
+    END AS 'Mode Name',
+    FORMAT(SWITCHOFFSET(jt.created_date_, '+05:30'), 'yyyy-MM-dd') AS 'Created Date',
+    FORMAT(SWITCHOFFSET(jt.created_date_, '+05:30'), 'yyyy-MM-dd HH:mm:ss') AS 'Task Created Date and Time',
+    FORMAT(SWITCHOFFSET(jt.last_updated_date_, '+05:30'), 'yyyy-MM-dd HH:mm:ss') AS 'Last Updated Date',
+    jt.[requested_by] AS 'Task Created By',
+    jt.[current_assignee_] AS 'Current Assignee',
+    jt.[last_assignee_] AS 'Last Assignee',
+    COALESCE(sm.StatusName, jt.[status_]) AS 'Status Name',
+    COALESCE(rm.ReasonName, jt.[reason]) AS 'Reason Code',
+    jt.[comment] AS 'Comment',
+    COALESCE(bm.BrandName, jt.[brand]) AS 'Brand',
+    CASE 
+        WHEN jt.[case_priority] = 'high' THEN 'High'
+        WHEN jt.[case_priority] = 'medium' THEN 'Medium'
+        WHEN jt.[case_priority] = 'low' THEN 'Low'
+    END AS 'Case Priority',
+    CASE 
+        WHEN jt.[process] = 'customerApps' THEN 'Customer APPS'
+        WHEN jt.[process] = 'bambooRose' THEN 'Bamboo Rose'
+    END AS 'BR or CA',
+    jt.[requested_by] AS 'Requester Email ID',
+    COALESCE(rtm.RequestTypeName, mv.[value]) AS 'Request Type',
+    -- Add other columns here
+    ci.ClarificationReceived AS 'Clarification Received or not',
+    ci.ClarificationCount AS 'Clarification_Count',
+    CASE 
+        WHEN jt.state_ IN ('active', 'waiting') THEN DATEDIFF(MINUTE, GETUTCDATE(), jt.due_date_)
+        ELSE NULL 
+    END AS [RemainingTime(Min)],
+    td.ActualSLA AS 'Actual SLA(TimeTakenbyInfosys)',
+    dbo.GetDateStringFromMinutes(td.ActualSLA, 690) AS [Time Taken by Infosys]
+FROM 
+    [leapmaster_ref_data].[dbo].[mgftable] jt
+CROSS APPLY 
+    OPENJSON(jt.[request_type]) AS mv
+JOIN 
+    [leapmaster_ref_data].[dbo].[MGFSLA] AS m ON (jt.[brand] = m.[brand] AND mv.[value] = m.[request_type])
+LEFT JOIN 
+    StatusMapping sm ON jt.status_ = sm.status_
+LEFT JOIN 
+    ReasonMapping rm ON jt.reason = rm.reason
+LEFT JOIN 
+    BrandMapping bm ON jt.brand = bm.brand
+LEFT JOIN 
+    RequestTypeMapping rtm ON mv.[value] = rtm.request_type
+LEFT JOIN 
+    ClarificationInfo ci ON jt.business_key_ = ci.businesskeyId
+LEFT JOIN 
+    TaskDurations td ON jt.business_key_ = td.business_key
+WHERE 
+    jt.proc_def_key_ = 'SSCProcess'
+    AND jt.process = @process
+    AND jt.created_date_ >= DATEADD(DAY, -90, GETUTCDATE())
