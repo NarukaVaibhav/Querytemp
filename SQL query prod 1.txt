@@ -1,0 +1,255 @@
+SELECT DISTINCT jt.[business_key_] as CaseId
+      ,[proc_def_key_] as 'Process Name'
+ ,(Case when [source_]='Manual' then 'Manual' 
+             when [source_]='email' then 'Email' end) as 'Mode Name'
+	  ,FORMAT(SWITCHOFFSET(created_date_, '+05:30'),'yyyy-MM-dd') as 'Created Date'
+      ,FORMAT(SWITCHOFFSET(created_date_, '+05:30'),'yyyy-MM-dd HH:mm:ss') as 'Task Created Date and Time'
+      ,FORMAT(SWITCHOFFSET(last_updated_date_, '+05:30'),'yyyy-MM-dd HH:mm:ss') as 'Last Updated Date'
+	  ,[requested_by] as 'Task Created By'
+      ,[current_assignee_] as 'Current Assignee'
+      ,[last_assignee_] as 'Last Assignee'
+      ,(Case
+			when ([state_] = 'discarded' and [status_] in ('accepted','inProgress','clarificationRequested','duplicate','noActionRequired','Reopen','clarificationreceived','rejected','ticketClosure','new','sendBackToSme')) then 'Discarded'
+			when [status_]='inProgress' then 'In Progress'
+	        when [Status_]='new' then 'New'  
+			when[status_]='noActionRequired' then 'No Action Required' 
+			when[status_]='ticketClosure' then 'Ticket Closure'
+			when[status_]='clarificationRequested' then 'Clarification Requested'
+			when[status_]='Reopen' then 'Re-Open'
+			when[status_]='sendBackToSme' then 'Send Back To SME'
+			when[status_]='accepted' then 'Accepted'
+			when[status_]='rejected' then 'Rejected'
+			when[status_]='duplicate' then 'Duplicate'
+			when[status_]='clarificationreceived' then 'Clarification Received'
+			else [status_] end) as 'Status Name'
+          ,(case when [reason] = 'notInScope'then 'Not In Scope'
+       when [reason] = 'duplicate'then 'Duplicate'
+	   when [reason] = 'closedByMerchant'then 'Closed by Merchant'
+	   when [reason] = 'completed'then 'Completed'
+	   when [reason] = 'inProgress'then 'In Progress'
+	   when [reason] = 'notInScope'then 'Not In Scope'
+	   when [reason] = 'additionalInfoRequestedFromTradewin'then 'Additional Info requested from Tradewin'
+	   when [reason] = 'cpoNotFoundInBamboorose'then 'CPO not found in Bamboorose'
+	   when [reason] = 'dataMismatchBetweenDataChartAndBambooRoseCpoVpo'then 'Data Mismatch between Data Chart and Bamboo Rose (CPO/VPO)'
+	   when [reason] = 'furtherConfirmationFromMerchant'then 'Further confirmation from Merchant'
+	   when [reason] = 'invalidInformationOnDataChart'then 'Invalid Information on Data chart'
+	   when [reason] = 'missingInfoIncompleteDataChart'then 'Missing info/Incomplete Data chart'
+	   when [reason] = 'others'then 'Others'
+	   when [reason] = 'raisedRequestWithGsd'then 'Raised Request with GSD'
+	   when [reason] = 'styleNotRevealedFoundInCustomerSystem'then 'Style not Revealed/Found in Customer System'
+	   when [reason] = 'systemIssueApplicationDownUnableToLogin'then 'System Issue Application down/Unable to login'
+	   when [reason] = 'unableToPerformCpoVpoAssignment'then 'Unable to Perform CPO/VPO Assignment'
+	   when [reason] = 'vpoNotApproved'then 'VPO Not Approved'
+	   when [reason] = 'vpoNotReleased'then 'VPO not released'
+	   when [reason] = 'furtherConfirmationFromMgfItTeam'then 'Further confirmation from MGF IT  team'
+	   when [reason] = 'notInScopeOfService'then 'Not in scope of service'
+	   when [reason] = 'sendBackToSme'then 'Send Back To SME' end) as 'Reason Code'
+           ,[comment] as 'Comment'
+      ,(case when jt.[brand]='chicos' then 'Chico’s'
+			 when jt.[brand]='soma' then 'SOMA'
+			 when jt.[brand]='vineyardVines' then 'Vineyard Vines'
+			 when jt.[brand]='whiteHouseBlackMarket' then 'White House Black Market'
+			 when jt.[brand]='jCrew' then 'J.Crew'
+			 when jt.[brand]='express' then 'Express'
+			 when jt.[brand]='talbots' then 'Talbots'
+			 when jt.[brand]='pink' then 'PINK'
+			 when jt.[brand]='belkPrivateLabel' then 'Belk Private Label'
+			 when jt.[brand]='maurices' then 'Maurices'
+			 when jt.[brand]='torrid' then 'Torrid'
+			 when jt.[brand]='belkLimited' then 'Belk Limited'
+			 when jt.[brand]='stitchFix' then 'Stitch Fix'
+			 when jt.[brand]='victoriasSecret' then 'Victoria’s Secret'
+			 when jt.[brand]='laneBryant' then 'Lane Bryant'
+			 when jt.[brand]='annTaylor' then 'Ann Taylor'
+			 when jt.[brand]='loft' then 'LOFT'
+			 when jt.[brand]='footLocker' then 'Foot Locker'
+			 when jt.[brand]='maurice' then 'Maurice’s'
+			 when jt.[brand]='allBrands' then 'All Brands'
+			 when jt.[brand]='softSurroundings' then 'Soft Surroundings'
+			 when jt.[brand]='brumsMilano' then 'Brums Milano'
+			 when jt.[brand]='spanx' then 'SPANX'
+			 when jt.[brand]='gap' then 'GAP'
+when jt.[brand]='cab' then 'CAB'
+when jt.[brand]='whbm' then 'WHBM'
+         else jt.[brand]
+	end ) as 'Brand'
+      ,(Case when [case_priority]='high' then 'High'
+        when [case_priority]='medium' then 'Medium'
+        when [case_priority]='low' then 'Low' end )as 'Case Priority'
+	  ,( case when  [process] = 'customerApps' then 'Customer APPS'
+	             when  [process] = 'bambooRose' then 'Bamboo Rose' end) as 'BR or CA'
+      ,[requested_by] as 'Requester Email ID'	  
+     ,( case when mv.[value]='amendVpoFieldLevel' then 'Amend VPO Field Level'	 
+	when mv.[value]='downloadTechpack' then 'Download Techpack'
+	when mv.[value]='customerPurchaseOrder' then 'Customer Purchase Order'
+	when mv.[value]='ePattern' then 'E-Pattern'
+	when mv.[value]='downloadCad' then 'Download Cad'
+	when mv.[value]='colorCommentsDownload' then 'Color Comments Download'
+	when mv.[value]='drawDevelopmentChart' then 'Draw Development Chart'
+	when mv.[value]='downloadNfg' then 'Download Nfg'
+	when mv.[value]='uploadEta' then 'Upload Eta'
+	when mv.[value]='strikeOffDownload' then 'Strike Off Download'
+	when mv.[value]='updateTnaData' then 'Update TNA Data'
+	when mv.[value]='updateCostData' then 'Update Cost Data'
+	when mv.[value]='downloadLineSheet' then 'Download Line Sheet'
+	when mv.[value]='cpoCreation' then 'Cpo Creation'
+	when mv.[value]='updateSampleTracking' then 'Update Sample Tracking'
+	when mv.[value]='downloadCancelledCpOs' then 'Download Cancelled CpOs'
+	when mv.[value]='amendVpo' then 'Amend VPO'
+	when mv.[value]='fsfeReport' then 'FSFE Report'
+	when mv.[value]='vpoStatusMonitoringReport' then 'VPO Status Monitoring Report'
+	when mv.[value]='miscellanneousReport' then 'Miscellanneous Report'
+	when mv.[value]='logisticMonitoringReport' then 'Logistic Monitoring Report'
+	when mv.[value]='sampleMeasurementUpload' then 'Sample Measurement Upload'
+	when mv.[value]='riskAssessmentUpload' then 'Risk Assessment Upload'
+	when mv.[value]='createTechspec' then 'Create Techspec'
+	when mv.[value]='revisedTechspec' then 'Revised Techspec'
+	when mv.[value]='reviseOfferLine' then 'Revise Offer Line'
+	when mv.[value]='vpoCancellation' then 'VPO Cancellation'
+	when mv.[value]='vpoMerchListReport' then 'VPO Merch List Report'
+	when mv.[value]='sscInternalExceptionReport' then 'SSC Internal Exception Report'
+	when mv.[value]='oddShipToExceptionReport' then 'Odd Ship To Exception Report'
+	when mv.[value]='rpaVpoCreation' then 'RPA VPO Creation'
+	when mv.[value]='createOfferLine' then 'Create Offer Line'
+	when mv.[value]='rpaVpoCpoAssignment' then 'RPA VPO CPO Assignment'
+	when mv.[value]='poCollaboration' then 'PO Collaboration'
+	when mv.[value]='bomUpdate' then 'BOM Update'
+	when mv.[value]='amendCpo' then 'Amend Cpo'
+	when mv.[value]='createCpo' then 'Create Cpo'
+	when mv.[value]='fabricMillDetailsUpdate' then 'Fabric Mill Details Update'
+	when mv.[value]='amendmentsIpHtsCodeGeneration' then 'Amendments IP HTS code generation'
+	when mv.[value]='vpoApproval' then 'VPO Approval'
+	when mv.[value]='vpoCpoAssignment' then 'VPO CPO Assignment'
+	when mv.[value]='createVpo' then 'Create Vpo'
+	when mv.[value]='scoWeeklyReports' then 'SCO Weekly Reports'
+	when mv.[value]='assignmentStatusWithSubmittedPlReport' then 'Assignment Status With Submitted PL Report'
+	when mv.[value]='vpoAlphaErrorReport' then 'VPO Alpha Error Report'
+	when mv.[value]='vpoListWithInactiveCustomerDepartment' then 'VPO List With Inactive Customer Department'
+    when mv.[value]='ipCqCompletionHtsCodeGeneration' then 'IP CQ completion - HTS code generation'
+    when mv.[value]='techpackCreation' then 'Techpack Creation'	
+    when mv.[value]='materialIdCreation' then 'Material ID Creation'
+	when mv.[value]='bomAssignment' then 'BOM Assignment'
+	when mv.[value]='patternDownload' then 'Pattern Download'
+	when mv.[value]='vpoCreation' then 'VPO Creation'
+	when mv.[value]='sampleReportDownload' then 'Sample Report Download'
+	when mv.[value]='invoiceDownload' then 'Invoice Download'
+		else mv.[value]
+	end ) as 'Request Type'
+     ,( case when mv.[value]='amendVpoFieldLevel' then vol_amend_vpo_fl
+	when mv.[value]='downloadTechpack' then vol_down_techpack
+	when mv.[value]='customerPurchaseOrder' then vol_cust_po
+	when mv.[value]='ePattern' then vol_epattern
+	when mv.[value]='downloadCad' then vol_down_cad
+	when mv.[value]='colorCommentsDownload' then vol_col_comm_down
+	when mv.[value]='drawDevelopmentChart' then vol_draw_dev_chart
+	when mv.[value]='downloadNfg' then vol_down_nfg
+	when mv.[value]='uploadEta' then vol_upload_eta
+	when mv.[value]='strikeOffDownload' then vol_strike_off_down
+	when mv.[value]='updateTnaData' then vol_update_tna_d
+	when mv.[value]='updateCostData' then vol_update_cost_d
+	when mv.[value]='downloadLineSheet' then vol_down_linesheet
+	when mv.[value]='cpoCreation' then vol_cpo_crea
+	when mv.[value]='updateSampleTracking' then vol_upda_samp_track
+	when mv.[value]='downloadCancelledCpOs' then vol_down_cance_cpo
+	when mv.[value]='amendVpo' then vol_amend_vpo
+	when mv.[value]='fsfeReport' then vol_fsfe_report
+	when mv.[value]='vpoStatusMonitoringReport' then vol_vpo_mr
+	when mv.[value]='miscellanneousReport' then vol_miscellaneous_re
+	when mv.[value]='logisticMonitoringReport' then vol_logistic_mr
+	when mv.[value]='sampleMeasurementUpload' then vol_sam_measure_up
+	when mv.[value]='riskAssessmentUpload' then vol_risk_ass_uplo
+	when mv.[value]='createTechspec' then vol_create_tech
+	when mv.[value]='revisedTechspec' then vol_revise_tech
+	when mv.[value]='reviseOfferLine' then vol_revise_offer_l
+	when mv.[value]='vpoCancellation' then vol_vpo_cance
+	when mv.[value]='vpoMerchListReport' then vol_vpo_merch_listr
+	when mv.[value]='sscInternalExceptionReport' then vol_ssc_internal_er
+	when mv.[value]='oddShipToExceptionReport' then vol_odd_shipto_er
+	when mv.[value]='rpaVpoCreation' then vol_rpa_vpo_crea
+	when mv.[value]='createOfferLine' then vol_create_off_li
+	when mv.[value]='rpaVpoCpoAssignment' then vol_rpa_vpo_cpo_ass
+	when mv.[value]='poCollaboration' then vol_po_collab
+	when mv.[value]='bomUpdate' then vol_bom_upda
+	when mv.[value]='amendCpo' then vol_amend_cpo
+	when mv.[value]='createCpo' then vol_create_cpo
+	when mv.[value]='fabricMillDetailsUpdate' then vol_fab_mill_details_up
+	when mv.[value]='amendmentsIpHtsCodeGeneration' then vol_amend_ip_hts_cg
+	when mv.[value]='vpoApproval' then vol_vpo_approval
+	when mv.[value]='vpoCpoAssignment' then vol_vpo_cpo_ass
+	when mv.[value]='createVpo' then vol_create_vpo
+	when mv.[value]='scoWeeklyReports' then vol_sco_weekly_reports
+	when mv.[value]='assignmentStatusWithSubmittedPlReport' then vol_assign_status_plr
+	when mv.[value]='vpoAlphaErrorReport' then vol_vpo_alpha_er
+	when mv.[value]='vpoListWithInactiveCustomerDepartment' then vol_vpo_list_wi_cus_de
+    when mv.[value]='ipCqCompletionHtsCodeGeneration' then vol_ip_cq_comp
+    when mv.[value]='techpackCreation' then vol_techpack_crea
+    when mv.[value]='materialIdCreation' then vol_mat_id_creation
+    when mv.[value]='bomAssignment' then vol_bom_ass
+	when mv.[value]='patternDownload' then vol_pat_down
+	when mv.[value]='vpoCreation' then vol_vpo_creation
+	when mv.[value]='sampleReportDownload' then vol_sam_rep_down
+	when mv.[value]='invoiceDownload' then vol_inv_down
+       end ) as Volume
+      ,(Case when [sales_office_location] ='hongKong' then 'Hong Kong'
+        when [sales_office_location] ='chinaShanghai' then 'China (Shanghai)'
+        when [sales_office_location] ='vietnam' then 'Vietnam'
+        when [sales_office_location] ='korea' then 'Korea'
+        when [sales_office_location] ='indonesia' then 'Indonesia'
+       when [sales_office_location] ='bangladesh' then 'Bangladesh'
+       when [sales_office_location] ='sriLanka' then 'Sri Lanka'
+       when [sales_office_location] ='india' then 'India' end)  as 'Sales Office Location'
+      ,[short_description] as 'Subject Line'
+      ,[volume] as 'Total Volume'
+	  ,FORMAT(SWITCHOFFSET(created_date_, '+05:30'),'yyyy-MM-dd HH:mm:ss') as 'SLA Start Date'
+	  ,FORMAT(SWITCHOFFSET(due_date_, '+05:30'),'yyyy-MM-dd HH:mm:ss') as 'SLA Due Date'
+	  ,FORMAT(SWITCHOFFSET(end_date_, '+05:30'),'yyyy-MM-dd HH:mm:ss') as 'Actual End Date'
+	  ,m.[slatimeinmilliseconds]/60000 as SLA
+	  ,(select SUM(CAST(msca.[slatimeinmilliseconds] AS INT)) from [leapmaster_ref_data].[dbo].[MGFSLA] as msca
+
+	  CROSS APPLY OPENJSON(jt.[request_type])as openj Join
+
+	   [leapmaster_ref_data].[dbo].[mgftable] as mtn ON (mtn.brand=msca.brand and openj.[value]= msca.request_type)
+
+	   where mtn.business_key_=jt.business_key_)/60000 as TotalSLA
+	   
+	  
+	   ,Case when DateDiff(mi, created_date_, end_date_)>0 then DateDiff(mi, created_date_, end_date_) 
+	   ELSE '' END as [Total Time (in Minutes)]
+	   ,dbo.GetDateStringFromMinutes(m.[slatimeinmilliseconds]/60000,690) as [Configured Time]
+	  
+	   
+	    ,(CASE WHEN end_date_ IS NOT NULL AND end_date_ <= due_date_ THEN 'YES'
+        WHEN end_date_ IS NULL AND GETUTCDATE() < due_date_ THEN 'Inprogress'
+		WHEN end_date_ IS NOT NULL AND end_date_ > due_date_ THEN 'No'
+		WHEN end_date_ IS NULL AND GETUTCDATE() >= due_date_ THEN 'No'
+		END) AS 'SLAMet'
+             ,(select case when count(*)>=1 then 'Yes' else'No' end 
+	FROM [leapmaster].[dbo].[icm_audit] as icm
+	where  icm.businesskeyId in(select business_key_ from [leapmaster_ref_data].[dbo].[mgftable] ) and
+  icm.comments='Case status changed to Clarification Requested' and icm.businesskeyId = business_key_) as 'Clarification Received or not'
+             ,(select count(*) 
+	FROM [leapmaster].[dbo].[icm_audit] as icm
+	where  icm.businesskeyId in(select business_key_ from [leapmaster_ref_data].[dbo].[mgftable] ) and
+  icm.comments='Case status changed to Clarification Requested' and icm.businesskeyId = business_key_) as 'Clarification_Count'
+   ,(select count(*) 
+	FROM [leapmaster].[dbo].[icm_audit] as icm
+	where  icm.businesskeyId in(select business_key_ from [leapmaster_ref_data].[dbo].[mgftable] ) and
+  icm.comments='Case status changed to Clarification Requested' and icm.businesskeyId = business_key_) as 'Clarification_Count'
+  
+  , Case When state_ in ('active', 'waiting') then Datediff(MI, GETUTCDATE(), due_date_) 
+	  Else NULL End as [RemainingTime(Min)] 
+    ,
+	(SELECT sum(coalesce(cast(duration as BIGINT),0)) FROM mgftable_task_durations (nolock)
+	 WHERE task_name NOT IN ('mailReceived') AND (status_ ='ticketClosure' OR status_ ='noActionRequired') AND duration IS NOT NULL and business_key=business_key_)/60000 as 'Actual SLA(TimeTakenbyInfosys)'
+	,
+	dbo.GetDateStringFromMinutes((SELECT sum(coalesce(cast(duration as BIGINT),0)) FROM mgftable_task_durations (nolock)
+	WHERE task_name NOT IN ('mailReceived') AND (status_ ='ticketClosure' OR status_ ='noActionRequired') AND duration IS NOT NULL and business_key=business_key_)/60000,690) as [Time Taken by Infosys]
+  
+
+FROM [leapmaster_ref_data].[dbo].[mgftable] jt
+CROSS APPLY OPENJSON(jt.[request_type])as mv
+JOIN [leapmaster_ref_data].[dbo].[MGFSLA] as m  
+ON (jt.[brand] = m.[brand] and
+mv.[value] = m.[request_type]) where proc_def_key_= 'SSCProcess'  
+and process={process} and (created_date_ >= Dateadd(dd,-90, GETUTCDATE()) AND created_date_ <= GETUTCDATE())
+
