@@ -1,0 +1,29 @@
+-- Optimized TotalSLA calculation
+,(SELECT SUM(CAST(msca.[slatimeinmilliseconds] AS BIGINT)) / 60000
+  FROM [leapmaster_ref_data].[dbo].[MGFSLA] AS msca
+  JOIN OPENJSON(jt.[request_type]) AS openj ON openj.[value] = msca.request_type
+  WHERE msca.brand = jt.brand) AS TotalSLA
+
+-- Optimized Total Time calculation
+,CASE 
+  WHEN DATEDIFF(MINUTE, created_date_, end_date_) > 0 
+  THEN DATEDIFF(MINUTE, created_date_, end_date_) 
+  ELSE NULL 
+ END AS [Total Time (in Minutes)]
+
+-- Optimized Configured Time calculation
+,dbo.GetDateStringFromMinutes(m.[slatimeinmilliseconds] / 60000, 690) AS [Configured Time]
+
+-- Optimized SLAMet calculation
+,CASE 
+  WHEN end_date_ IS NOT NULL THEN
+    CASE 
+      WHEN end_date_ <= due_date_ THEN 'YES'
+      ELSE 'No'
+    END
+  ELSE
+    CASE 
+      WHEN GETUTCDATE() < due_date_ THEN 'Inprogress'
+      ELSE 'No'
+    END
+ END AS 'SLAMet'
