@@ -1,0 +1,211 @@
+WITH ClarificationInfo AS (
+    SELECT 
+        businesskeyId,
+        CASE WHEN COUNT(*) >= 1 THEN 'Yes' ELSE 'No' END AS ClarificationReceived,
+        COUNT(*) AS ClarificationCount
+    FROM [leapmaster].[dbo].[icm_audit]
+    WHERE comments = 'Case status changed to Clarification Requested'
+    GROUP BY businesskeyId
+),
+TaskDurations AS (
+    SELECT 
+        business_key,
+        SUM(COALESCE(CAST(duration AS BIGINT), 0)) / 60000 AS ActualSLA
+    FROM mgftable_task_durations
+    WHERE task_name NOT IN ('mailReceived') 
+    AND status IN ('ticketClosure', 'noActionRequired')
+    AND duration IS NOT NULL
+    GROUP BY business_key
+),
+StatusMapping AS (
+    SELECT 'discarded' AS status_, 'Discarded' AS StatusName
+    UNION ALL SELECT 'inProgress', 'In Progress'
+    UNION ALL SELECT 'new', 'New'
+    UNION ALL SELECT 'noActionRequired', 'No Action Required'
+    UNION ALL SELECT 'ticketClosure', 'Ticket Closure'
+    UNION ALL SELECT 'clarificationRequested', 'Clarification Requested'
+    UNION ALL SELECT 'Reopen', 'Re-Open'
+    UNION ALL SELECT 'sendBackToSme', 'Send Back To SME'
+    UNION ALL SELECT 'accepted', 'Accepted'
+    UNION ALL SELECT 'rejected', 'Rejected'
+    UNION ALL SELECT 'duplicate', 'Duplicate'
+    UNION ALL SELECT 'clarificationreceived', 'Clarification Received'
+),
+ReasonMapping AS (
+    SELECT 'notInScope' AS reason, 'Not In Scope' AS ReasonName
+    UNION ALL SELECT 'duplicate', 'Duplicate'
+    UNION ALL SELECT 'closedByMerchant', 'Closed by Merchant'
+    UNION ALL SELECT 'completed', 'Completed'
+    UNION ALL SELECT 'inProgress', 'In Progress'
+    UNION ALL SELECT 'notInScope', 'Not In Scope'
+    UNION ALL SELECT 'additionalInfoRequestedFromTradewin', 'Additional Info requested from Tradewin'
+    UNION ALL SELECT 'cpoNotFoundInBamboorose', 'CPO not found in Bamboorose'
+    UNION ALL SELECT 'dataMismatchBetweenDataChartAndBambooRoseCpoVpo', 'Data Mismatch between Data Chart and Bamboo Rose (CPO/VPO)'
+    UNION ALL SELECT 'furtherConfirmationFromMerchant', 'Further confirmation from Merchant'
+    UNION ALL SELECT 'invalidInformationOnDataChart', 'Invalid Information on Data chart'
+    UNION ALL SELECT 'missingInfoIncompleteDataChart', 'Missing info/Incomplete Data chart'
+    UNION ALL SELECT 'others', 'Others'
+    UNION ALL SELECT 'raisedRequestWithGsd', 'Raised Request with GSD'
+    UNION ALL SELECT 'styleNotRevealedFoundInCustomerSystem', 'Style not Revealed/Found in Customer System'
+    UNION ALL SELECT 'systemIssueApplicationDownUnableToLogin', 'System Issue Application down/Unable to login'
+    UNION ALL SELECT 'unableToPerformCpoVpoAssignment', 'Unable to Perform CPO/VPO Assignment'
+    UNION ALL SELECT 'vpoNotApproved', 'VPO Not Approved'
+    UNION ALL SELECT 'furtherConfirmationFromMgfItTeam', 'Further confirmation from MGF IT team'
+    UNION ALL SELECT 'notInScopeOfService', 'Not in scope of service'
+    UNION ALL SELECT 'sendBackToSme', 'Send Back To SME'
+),
+BrandMapping AS (
+    SELECT 'chicos' AS brand, 'Chico''s' AS BrandName
+    UNION ALL SELECT 'soma', 'SOMA'
+    UNION ALL SELECT 'vineyardVines', 'Vineyard Vines'
+    UNION ALL SELECT 'whiteHouseBlackMarket', 'White House Black Market'
+    UNION ALL SELECT 'jCrew', 'J.Crew'
+    UNION ALL SELECT 'express', 'Express'
+    UNION ALL SELECT 'talbots', 'Talbots'
+    UNION ALL SELECT 'pink', 'PINK'
+    UNION ALL SELECT 'belkPrivateLabel', 'Belk Private Label'
+    UNION ALL SELECT 'maurices', 'Maurices'
+    UNION ALL SELECT 'torrid', 'Torrid'
+    UNION ALL SELECT 'belkLimited', 'Belk Limited'
+    UNION ALL SELECT 'stitchFix', 'Stitch Fix'
+    UNION ALL SELECT 'victoriasSecret', 'Victoria s Secret'
+    UNION ALL SELECT 'laneBryant', 'Lane Bryant'
+    UNION ALL SELECT 'annTaylor', 'Ann Taylor'
+    UNION ALL SELECT 'loft', 'LOFT'
+    UNION ALL SELECT 'footLocker', 'Foot Locker'
+    UNION ALL SELECT 'maurice', 'Maurice s'
+    UNION ALL SELECT 'allBrands', 'All Brands'
+),
+RequestTypeMapping AS (
+    SELECT 'amendVpoFieldLevel' AS request_type, 'Amend VPO Field Level' AS RequestTypeName
+    UNION ALL SELECT 'downloadTechpack', 'Download Techpack'
+    UNION ALL SELECT 'customerPurchaseOrder', 'Customer Purchase Order'
+    UNION ALL SELECT 'ePattern', 'E-Pattern'
+    UNION ALL SELECT 'downloadCad', 'Download Cad'
+    UNION ALL SELECT 'colorCommentsDownload', 'Color Comments Download'
+    UNION ALL SELECT 'drawDevelopmentChart', 'Draw Development Chart'
+    UNION ALL SELECT 'downloadNfg', 'Download Nfg'
+    UNION ALL SELECT 'uploadEta', 'Upload Eta'
+    UNION ALL SELECT 'strikeOffDownload', 'Strike Off Download'
+    UNION ALL SELECT 'updateTnaData', 'Update TNA Data'
+    UNION ALL SELECT 'updateCostData', 'Update Cost Data'
+    UNION ALL SELECT 'downloadLineSheet', 'Download Line Sheet'
+    UNION ALL SELECT 'cpoCreation', 'Cpo Creation'
+    UNION ALL SELECT 'updateSampleTracking', 'Update Sample Tracking'
+    UNION ALL SELECT 'downloadCancelledCpOs', 'Download Cancelled CpOs'
+    UNION ALL SELECT 'amendVpo', 'Amend VPO'
+    UNION ALL SELECT 'fsfeReport', 'FSFE Report'
+    UNION ALL SELECT 'vpoStatusMonitoringReport', 'VPO Status Monitoring Report'
+    UNION ALL SELECT 'miscellanneousReport', 'Miscellanneous Report'
+    UNION ALL SELECT 'logisticMonitoringReport', 'Logistic Monitoring Report'
+    UNION ALL SELECT 'sampleMeasurementUpload', 'Sample Measurement Upload'
+    UNION ALL SELECT 'riskAssessmentUpload', 'Risk Assessment Upload'
+    UNION ALL SELECT 'createTechspec', 'Create Techspec'
+    UNION ALL SELECT 'revisedTechspec', 'Revised Techspec'
+    UNION ALL SELECT 'reviseOfferLine', 'Revise Offer Line'
+    UNION ALL SELECT 'vpoCancellation', 'VPO Cancellation'
+    UNION ALL SELECT 'vpoMerchListReport', 'VPO Merch List Report'
+    UNION ALL SELECT 'sscInternalExceptionReport', 'SSC Internal Exception Report'
+    UNION ALL SELECT 'oddShipToExceptionReport', 'Odd Ship To Exception Report'
+    UNION ALL SELECT 'rpaVpoCreation', 'RPA VPO Creation'
+    UNION ALL SELECT 'createOfferLine', 'Create Offer Line'
+    UNION ALL SELECT 'rpaVpoCpoAssignment', 'RPA VPO CPO Assignment'
+    UNION ALL SELECT 'poCollaboration', 'PO Collaboration'
+    UNION ALL SELECT 'bomUpdate', 'BOM Update'
+    UNION ALL SELECT 'amendCpo', 'Amend Cpo'
+    UNION ALL SELECT 'createCpo', 'Create Cpo'
+    UNION ALL SELECT 'fabricMillDetailsUpdate', 'Fabric Mill Details Update'
+    UNION ALL SELECT 'amendmentsIpHtsCodeGeneration', 'Amendments IP HTS code generation'
+    UNION ALL SELECT 'vpoApproval', 'VPO Approval'
+    UNION ALL SELECT 'vpoCpoAssignment', 'VPO CPO Assignment'
+    UNION ALL SELECT 'createVpo', 'Create Vpo'
+    UNION ALL SELECT 'scoWeeklyReports', 'SCO Weekly Reports'
+    UNION ALL SELECT 'assignmentStatusWithSubmittedPlReport', 'Assignment Status With Submitted PL Report'
+    UNION ALL SELECT 'vpoAlphaErrorReport', 'VPO Alpha Error Report'
+    UNION ALL SELECT 'vpoListWithInactiveCustomerDepartment', 'VPO List With Inactive Customer Department'
+    UNION ALL SELECT 'ipCqCompletionHtsCodeGeneration', 'IP CQ completion - HTS code generation'
+    UNION ALL SELECT 'techpackCreation', 'Techpack Creation'
+)
+
+SELECT DISTINCT
+    jt.[business_key_] AS CaseId,
+    jt.[proc_def_key_] AS 'Process Name',
+    CASE 
+        WHEN jt.[source_] = 'Manual' THEN 'Manual' 
+        WHEN jt.[source_] = 'email' THEN 'Email' 
+    END AS 'Mode Name',
+    FORMAT(DATEADD(MINUTE, 330, jt.created_date_), 'yyyy-MM-dd') AS 'Created Date',
+    FORMAT(DATEADD(MINUTE, 330, jt.created_date_), 'yyyy-MM-dd HH:mm:ss') AS 'Task Created Date and Time',
+    FORMAT(DATEADD(MINUTE, 330, jt.last_updated_date_), 'yyyy-MM-dd HH:mm:ss') AS 'Last Updated Date',
+    jt.[requested_by] AS 'Task Created By',
+    jt.[current_assignee_] AS 'Current Assignee',
+    jt.[last_assignee_] AS 'Last Assignee',
+    COALESCE(sm.StatusName, jt.[status_]) AS 'Status Name',
+    COALESCE(rm.ReasonName, jt.[reason]) AS 'Reason Code',
+    jt.[comment] AS 'Comment',
+    COALESCE(bm.BrandName, jt.[brand]) AS 'Brand',
+    CASE 
+        WHEN jt.[case_priority] = 'high' THEN 'High'
+        WHEN jt.[case_priority] = 'medium' THEN 'Medium'
+        WHEN jt.[case_priority] = 'low' THEN 'Low'
+    END AS 'Case Priority',
+    CASE 
+        WHEN jt.[process] = 'customerApps' THEN 'Customer APPS'
+        WHEN jt.[process] = 'bambooRose' THEN 'Bamboo Rose'
+    END AS 'BR or CA',
+    jt.[requested_by] AS 'Requester Email ID',
+    COALESCE(rtm.RequestTypeName, mv.[value]) AS 'Request Type',
+    CASE 
+        WHEN mv.[value] = 'amendVpoFieldLevel' THEN vol_amend_vpo_fl
+        WHEN mv.[value] = 'downloadTechpack' THEN vol_down_techpack
+        -- ... (other WHEN clauses for volume calculation)
+        WHEN mv.[value] = 'techpackCreation' THEN vol_techpack_crea
+    END AS Volume,
+    CASE 
+        WHEN [sales_office_location] = 'hongKong' THEN 'Hong Kong'
+        WHEN [sales_office_location] = 'chinaShanghai' THEN 'China (Shanghai)'
+        WHEN [sales_office_location] = 'vietnam' THEN 'Vietnam'
+        WHEN [sales_office_location] = 'korea' THEN 'Korea'
+        WHEN [sales_office_location] = 'indonesia' THEN 'Indonesia'
+        WHEN [sales_office_location] = 'bangladesh' THEN 'Bangladesh'
+        WHEN [sales_office_location] = 'sriLanka' THEN 'Sri Lanka'
+        WHEN [sales_office_location] = 'india' THEN 'India' 
+    END AS 'Sales Office Location',
+    [short_description] AS 'Subject Line',
+    [volume] AS 'Total Volume',
+    FORMAT(DATEADD(MINUTE, 330, created_date_), 'yyyy-MM-dd HH:mm:ss') AS 'SLA Start Date',
+    FORMAT(DATEADD(MINUTE, 330, due_date_), 'yyyy-MM-dd HH:mm:ss') AS 'SLA Due Date',
+    FORMAT(DATEADD(MINUTE, 330, end_date_), 'yyyy-MM-dd HH:mm:ss') AS 'Actual End Date',
+    m.[slatimeinmilliseconds]/60000 AS SLA,
+    (SELECT SUM(CAST(msca.[slatimeinmilliseconds] AS BIGINT)) / 60000
+     FROM [leapmaster_ref_data].[dbo].[MGFSLAConfigurationOnAttributes] AS msca
+     JOIN OPENJSON(jt.[request_type]) AS openj ON openj.[value] = msca.request_type
+     WHERE msca.brand = jt.brand) AS TotalSLA,
+    CASE 
+        WHEN DATEDIFF(MINUTE, created_date_, end_date_) > 0 
+        THEN DATEDIFF(MINUTE, created_date_, end_date_) 
+        ELSE NULL 
+    END AS [Total Time (in Minutes)],
+    dbo.GetDateStringFromMinutes(m.[slatimeinmilliseconds] / 60000, 690) AS [Configured Time],
+    CASE 
+        WHEN end_date_ IS NOT NULL THEN
+            CASE 
+                WHEN end_date_ <= due_date_ THEN 'YES'
+                ELSE 'No'
+            END
+        ELSE
+            CASE 
+                WHEN GETUTCDATE() < due_date_ THEN 'Inprogress'
+                ELSE 'No'
+            END
+    END AS 'SLAMet',
+    ci.ClarificationReceived AS 'Clarification Received or not',
+    ci.ClarificationCount AS 'Clarification_Count',
+    CASE 
+        WHEN jt.state_ IN ('active', 'waiting') THEN DATEDIFF(MINUTE, GETUTCDATE(), jt.due_date_)
+        ELSE NULL 
+    END AS [RemainingTime(Min)],
+    td.ActualSLA AS 'Actual SLA(TimeTakenbyInfosys)',
+    dbo.GetDateStringFromMinutes(td.ActualSLA, 690) AS [Time Taken by Infosys]
+FROM 
+    [leapmaster_ref_data]
