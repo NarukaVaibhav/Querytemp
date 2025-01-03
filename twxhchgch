@@ -1,0 +1,20 @@
+[leapmaster_ref_data].[dbo].[mgftablenew] jt
+CROSS APPLY 
+    OPENJSON(jt.[request_type]) AS mv
+JOIN 
+    [leapmaster_ref_data].[dbo].[MGFSLAConfigurationOnAttributes] AS m ON (jt.[brand] = m.[brand] AND mv.[value] = m.[request_type])
+LEFT JOIN 
+    StatusMapping sm ON jt.status_ = sm.status_
+LEFT JOIN 
+    ReasonMapping rm ON jt.reason = rm.reason
+LEFT JOIN 
+    BrandMapping bm ON jt.brand = bm.brand
+LEFT JOIN 
+    RequestTypeMapping rtm ON mv.[value] = rtm.request_type
+LEFT JOIN 
+    ClarificationInfo ci ON jt.business_key_ = ci.businesskeyId
+LEFT JOIN 
+    TaskDurations td ON jt.business_key_ = td.business_key
+WHERE 
+    jt.proc_def_key_ = 'SSCProcess'
+    AND jt.created_date_ >= DATEADD(DAY, -90, GETUTCDATE())
